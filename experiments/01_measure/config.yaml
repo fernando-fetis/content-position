@@ -1,0 +1,19 @@
+# The shared measurement: the parts of every head and plane of the benchmark models on every task at its last query, the induction-circuit roles and Chen and Yan's quantities; and what 03 and 04 read: the calibration passes on WikiText-2.
+models: [qwen2.5-0.5b, qwen2.5-1.5b, qwen2.5-3b, qwen2.5-7b, llama-3.2-1b-base, llama-3.2-3b-base, llama-3.1-8b-base]
+tasks: [index, retrieval, binding, number_hop1, letter_hop1, fixed_point, number_hop2, latest, successor, wiki, code, random_words, niah, niah_multikey, niah_multivalue, variable_tracking, key_value_long]
+n: {positional: 128, symbolic: 128, interaction: 128, mixed: 128, text: 32, long: 50}  # prompts per case, by task category
+max_tokens: 1024  # text: tokens per window (every task is measured at its last token)
+lengths: [4000, 16000, 31000]  # long tasks: target tokens of the prompt (within 2%), one case per length
+ratio_threshold: 0.8  # heads with positional ratio above it are counted as positional, below 1 minus it as symbolic
+reader_fraction: 0.05  # the fraction of non-sink heads with the largest attention on the answer, the reader heads
+read: {accuracy: 0.9, margin: 2.0}  # a case is read when the accuracy is at least accuracy and the readers attend to the answer at least margin times as much as to the distractor
+n_split: 50  # random halves of the prompts for the split-half reliability of the positional ratio
+repeated: {length: 64, n_seq: 16, token_range: [1000, 30000], queries: 8, prev_threshold: 0.5, induction_threshold: 0.3}  # induction circuit: random tokens per copy, sequences, token id range, queries of the second copy, role thresholds on the mean attention
+calibration: {source: wikitext_test, span: [0.0, 0.5], tokens: [1024, 4096, 16000], windows: {1024: 16, 4096: 16, 16000: 4}, queries: 16, elitekv_from: 64, elitekv_tokens: [1024]}  # windows of the first half of the WikiText-2 test set, one pass per length; queries per window; EliteKV's order over queries from elitekv_from on, only at elitekv_tokens (its cost is quadratic in the length)
+seed: 0
+device: auto
+dtype: float32
+mlp_chunk: 2048  # tokens per MLP call (exact; bounds memory on long sequences)
+gpus: 1
+figures: {main_model: qwen2.5-7b, main_cases: [index, retrieval, wiki, niah_31000], main_labels: [index, retrieval, WikiText-2, NIAH at 31k tokens], interaction_cases: [wiki, niah_31000], interaction_labels: [WikiText-2, NIAH at 31k tokens], measure_cases: [index, retrieval, fixed_point, wiki], plane_case: wiki}  # main_model: the model of the single-model figures; main_*: the simplex figure; interaction_*: the phase-covariance figure; measure_cases: the Urrutia figure; plane_case: the plane-fractions figure
+smoke: {models: [tiny-llama], device: cpu, n: {positional: 4, symbolic: 4, interaction: 4, mixed: 4, text: 3, long: 2}, max_tokens: 96, n_split: 5, repeated: {length: 8, n_seq: 2, token_range: [1000, 30000], queries: 3, prev_threshold: 0.5, induction_threshold: 0.3}, calibration: {source: wikitext_test, span: [0.0, 0.5], tokens: [1024, 4096, 16000], windows: {1024: 2, 4096: 2, 16000: 1}, queries: 4, elitekv_from: 64, elitekv_tokens: [1024]}, figures: {main_model: tiny-llama, main_cases: [index, retrieval, wiki, niah_31000], main_labels: [index, retrieval, WikiText-2, NIAH at 31k tokens], interaction_cases: [wiki, niah_31000], interaction_labels: [WikiText-2, NIAH at 31k tokens], measure_cases: [index, retrieval, fixed_point, wiki], plane_case: wiki}}  # tiny-llama on CPU; keeps the result names that the smoke runs of 03 and 04 read

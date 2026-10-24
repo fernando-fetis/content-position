@@ -1,0 +1,25 @@
+# The parts each kind of head uses, causally: in a group of heads every context logit keeps only some parts of the counterfactual matrix at its query; measured on the solved tasks and on text. Groups come from 01_measure's calibration.
+models: [qwen2.5-1.5b, qwen2.5-3b, qwen2.5-7b, llama-3.2-3b-base, llama-3.1-8b-base]
+calibration_experiment: 01_measure  # source of the head table (P_h, interaction share, sink weight per head)
+calibration_tokens: 4096  # the calibration pass of 01 read
+edits:  # name: the parts kept, the groups edited (the first is compared with its control) and their size as a fraction of the non-sink heads
+  only_c: {keep: c, groups: [positional, symbolic, random_0, matched_positional], fraction: 0.25}  # position and interaction removed; matched_positional: the random group whose removed variance is closest to that of the positional group
+  drop_c: {keep: pe, groups: [symbolic, positional, random_0, matched_symbolic], fraction: 0.1}  # content removed; matched_symbolic: the same for the symbolic group
+  drop_e: {keep: cp, groups: [interaction, random_0], fraction: 0.25}  # interaction removed
+tasks: {short: [retrieval, binding, latest, successor], long: [niah, key_value_long]}
+n: {short: 64, long: 10}
+target: 4000  # tokens of the long tasks
+text: {source: wikitext_test, span: [0.5, 1.0]}  # second half of the WikiText-2 test set (the calibration uses the first)
+text_n: 8  # text windows for the NLL change
+text_tokens: 1024  # tokens per text window
+chunk: 64  # queries per chunk of the edited heads
+solved: 0.9  # a task enters the statistics of a model when its intact accuracy reaches this
+matched_draws: 4000  # random draws among which the magnitude-matched control is the closest in removed variance
+check_tokens: 128  # length of the text window of the check stage
+seed: 0
+n_boot: 10000
+device: auto
+dtype: float32
+mlp_chunk: 2048
+gpus: 1
+smoke: {models: [tiny-llama], device: cpu, n: {short: 4, long: 2}, target: 300, text_n: 2, text_tokens: 64, check_tokens: 48, solved: 0.0, matched_draws: 50, n_boot: 50}

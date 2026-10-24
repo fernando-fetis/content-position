@@ -1,0 +1,18 @@
+# environment and secrets
+.venv/
+.env
+
+# caches and scratch
+__pycache__/
+.DS_Store
+.temp/
+logs/
+todo.md
+
+# raw results live on the machine that computed them; only summaries are tracked
+experiments/*/results/*
+!experiments/*/results/summary.json
+!experiments/*/results/summary.npz
+
+# per-cluster launcher profile
+src/remote/slurm.ini

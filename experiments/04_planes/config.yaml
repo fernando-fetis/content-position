@@ -1,0 +1,31 @@
+# Removing the rotation without training, at three granularities: in each KV head the planes a rule chooses keep their rotation (partial RoPE), or every plane of the KV heads or layers a rule chooses loses it (heads and layers without rotation); rules are scored by the increase of the loss on held-out text and code at two lengths and by the tasks at one fraction. Scores come from 01_measure's calibration.
+models: [qwen2.5-0.5b, qwen2.5-1.5b, qwen2.5-3b, qwen2.5-7b, llama-3.2-1b-base, llama-3.2-3b-base, llama-3.1-8b-base]
+calibration_experiment: 01_measure  # source of <model>__calibration_<tokens> (scores per layer, KV head and plane; EliteKV's order)
+calibration_tokens: 1024  # the calibration pass of 01 the scores come from
+long_calibration_tokens: [4096, 16000]  # the passes of variance_<T>: our score on longer windows, over which planes slow at calibration_tokens rotate (`cor:slow-planes-and-long-contexts`)
+rules: [high, norm, mkl, diagonal, elitekv, bound, variance, variance_4096, variance_16000]  # high (fastest planes), norm (MHA2MLA), mkl (MHA2MLA-VLM), diagonal (direct effect), elitekv (RoPElite); ours: bound, variance, variance_<T>
+fractions: [0.0625, 0.125, 0.25]  # fraction of the planes of each KV head that keep their rotation
+fraction: 0.25  # the fraction of the tables: tasks and planes with sigma_zeta^2 below norm_slow.threshold (planes); the head fraction whose plans are also scored on the tasks (heads)
+head_rules: [variance, ph, high_variance, random_0, random_1, random_2]  # variance: lowest position-dependent variance summed over the query heads of the KV head (ours); ph: lowest positional ratio, the largest over the non-sink query heads; high_variance: the opposite control; random_<i>: draws fixed by the seed
+head_fractions: [0.25, 0.5]  # fraction of the KV heads that lose their rotation
+layer_rules: [variance, interleaved, first, last, random_0, random_1, random_2]  # variance: lowest position-dependent variance summed over the heads of the layer (ours); interleaved: every round(1 / layer_fraction)-th layer, the pattern of hybrid RoPE-NoPE models; first, last: the first or last layers; random_<i>
+layer_fraction: 0.25  # fraction of the layers that lose their rotation
+single_layers: true  # also each layer alone, on the text at the shortest length: does its cost follow its summed variance?
+text: {wiki: {source: wikitext_test, span: [0.5, 1.0]}, code: {source: stdlib}}  # evaluation corpora (second half of the WikiText-2 test set, Python source)
+text_n: 16  # windows per corpus and length
+text_tokens: [1024, 4096]
+tasks: [retrieval, binding, niah]
+task_n: {short: 32, long: 50}
+lengths: [4000, 16000]  # long tasks: target tokens
+compared: [[variance, norm], [variance, mkl], [variance, diagonal], [variance, elitekv], [variance, variance_4096], [variance, variance_16000]]  # paired differences of the increase of the loss with bootstrap intervals over windows
+chunk: {default: 256, qwen2.5-7b: 32, llama-3.1-8b-base: 32}  # queries per chunk of the edited attention (exact; bounds memory at long contexts)
+norm_slow: {rules: [norm, mkl, elitekv, variance, variance_4096, variance_16000], threshold: 0.5}  # share of the planes each rule keeps whose sigma_zeta^2 is below threshold
+check: {tokens: 96, tolerance: 1.0e-5}  # window length; largest deviation of the logits with every plane kept
+seed: 0
+n_boot: 10000
+device: auto
+dtype: float32
+mlp_chunk: 2048  # tokens per MLP call (exact; bounds memory on long sequences)
+gpus: 1
+figures: {rules: [variance, bound, diagonal, elitekv, mkl, norm, high, variance_4096, variance_16000], keys: [wiki_1024, wiki_4096]}  # rules of the models and tasks figures; keys: corpora and lengths of the models figure
+smoke: {models: [tiny-llama], device: cpu, fractions: [0.5, 1.0], fraction: 0.5, text_n: 2, text_tokens: [64, 128], task_n: {short: 2, long: 2}, lengths: [256], chunk: {default: 16}, check: {tokens: 48, tolerance: 1.0e-6}, n_boot: 50, mlp_chunk: 32, head_rules: [variance, ph, high_variance, random_0], head_fractions: [0.5], layer_rules: [variance, interleaved, first, last, random_0], layer_fraction: 0.5, figures: {rules: [variance, bound, diagonal, elitekv, mkl, norm, high, variance_4096, variance_16000], keys: [wiki_64, wiki_128]}}

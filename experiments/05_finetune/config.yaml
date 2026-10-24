@@ -1,0 +1,28 @@
+# Partial RoPE with fine-tuning: each KV head keeps a quarter of its planes rotated, chosen by the rules of 04_planes, and the model is fine-tuned on FineWeb-Edu as in MHA2MLA; evaluated along fine-tuning against the intact model fine-tuned on the same data.
+models: [qwen2.5-0.5b, qwen2.5-1.5b]
+runs: {qwen2.5-0.5b: [intact, variance, norm, mkl, high], qwen2.5-1.5b: [intact, variance, variance_4096, variance_16000, norm]}  # intact: full RoPE fine-tuned on the same data; the others: rules of 04
+rule: all  # one run of runs per job (job split), or all
+fraction: 0.25  # fraction of the planes of each KV head that keep their rotation
+selection_experiment: 04_planes  # its <model>__selection results hold the kept planes of every rule and fraction
+data: {repo: HuggingFaceFW/fineweb-edu, revision: 87f09149ef4734204d70ed1d046ddc9ca3f2b8f9, file: sample/10BT/000_00000.parquet}  # training text: the first documents of the first shard (a local file: {source: <name>} for data/<name>.txt)
+seq: 2048  # tokens per training sequence
+tokens: 50000000  # training tokens per run
+batch: 32  # sequences per optimizer step (65,536 tokens)
+micro: {default: 8, qwen2.5-1.5b: 4}  # sequences per forward pass (gradient accumulation makes up the batch)
+optimizer: {lr: 5.0e-5, warmup: 0.02, final: 0.1, weight_decay: 0.1, betas: [0.9, 0.95], clip: 1.0}  # AdamW; linear warm-up over this fraction of the steps, cosine decay to final times lr
+train_dtype: bfloat16  # autocast of the training passes (weights and optimizer state stay in float32)
+eval_tokens: [0, 5000000, 12500000, 25000000, 50000000]  # evaluations along fine-tuning (0: the selection alone, as in 04)
+text: {wiki: {source: wikitext_test, span: [0.5, 1.0]}, code: {source: stdlib}}  # evaluation as in 04 (src/eval/text_tasks.py)
+text_n: 16
+text_tokens: [1024, 4096]
+tasks: [retrieval, binding, niah]
+task_n: {short: 32, long: 50}
+lengths: [4000, 16000]
+check: {tokens: 256, tolerance: 1.0e-5, agreement_tolerance: 1.0e-5}  # window length; largest deviation from the intact model, and between the trainable and the exact edit
+seed: 0
+n_boot: 10000
+device: auto
+dtype: float32
+gpus: 1
+figures: {keys: [wiki_1024, wiki_4096, code_1024]}  # corpora and lengths of the loss panels; the task panel shows the needle in a haystack at the longest length
+smoke: {models: [tiny-llama], runs: {tiny-llama: [intact, variance, variance_16000, norm]}, fraction: 0.5, data: {source: shakespeare}, seq: 32, tokens: 1000, batch: 4, micro: {default: 2}, train_dtype: float32, eval_tokens: [0, 256, 1000], text_n: 2, text_tokens: [64, 128], task_n: {short: 4, long: 2}, lengths: [300, 600], check: {tokens: 64, tolerance: 1.0e-6, agreement_tolerance: 1.0e-5}, n_boot: 50, device: cpu, figures: {keys: [wiki_64, wiki_128, code_64]}}

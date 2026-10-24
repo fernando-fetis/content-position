@@ -1,0 +1,13 @@
+# Who reads the answer in toy models: one-layer attention-only RoPE transformers on a positional, a symbolic and an interaction task, hand-built and trained (one head per task, and three heads on the mixture).
+toy_tasks: [positional, symbolic, interaction]
+toy_model: {length: 32, symbols: 16, keys: 40, d_model: 128, head_dim: 32, base: 10000}  # sequence length (BOS, 30 context tokens, the query), alphabet, keys of the symbolic task, widths, RoPE base
+hand: {beta: 20, gamma: 10}  # logit and output scales of the hand-built heads
+train: {steps: 30000, batch: 512, lr: 0.003, eval_every: 1000}  # Adam, cosine decay to zero
+solved: 0.9  # a trained model solves its task when its held-out accuracy reaches this
+seeds: [0, 1, 2, 3, 4]
+multi_heads: 3  # heads of the model trained on the mixture of the three tasks
+n_eval: 1000  # held-out examples per task for accuracy, parts and edits
+check_tolerance: 1.0e-4  # largest deviation of the logits with every part kept from the intact ones
+seed: 0
+device: auto
+smoke: {device: cpu, toy_model: {length: 10, symbols: 4, keys: 8, d_model: 16, head_dim: 8, base: 10000}, train: {steps: 50, batch: 32, lr: 0.003, eval_every: 25}, seeds: [0, 1], n_eval: 40}

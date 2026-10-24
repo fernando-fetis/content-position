@@ -1,0 +1,10 @@
+models: [qwen2.5-0.5b]  # names of src/models.yaml
+tasks: [retrieval]  # names of the benchmark of src/core/suite.py
+n: 64  # prompts per case
+check_tolerance: 1.0e-6  # largest deviation the check stage accepts
+seed: 0
+n_boot: 10000
+device: auto
+dtype: float32
+gpus: 1
+smoke: {models: [tiny-llama], device: cpu, n: 2, n_boot: 50}
